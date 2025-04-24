@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:collection/collection.dart';
 import 'package:file/file.dart';
 import 'package:flutter/material.dart';
+import 'package:fuzzywuzzy/model/extracted_result.dart';
 import 'package:multi_split_view/multi_split_view.dart';
 import 'package:path/path.dart';
 import 'package:pathplanner/commands/command.dart';
@@ -28,6 +29,7 @@ import 'package:pathplanner/widgets/renamable_title.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:undo/undo.dart';
 import 'package:watcher/watcher.dart';
+import 'package:fuzzywuzzy/fuzzywuzzy.dart';
 
 class ProjectPage extends StatefulWidget {
   static Set<String> events = {};
@@ -247,6 +249,58 @@ class _ProjectPageState extends State<ProjectPage> {
 
       _loading = false;
     });
+  }
+
+  List<Widget> fuzzySearchPaths(BuildContext context) {
+    Map<String, int> pathEntries = {};
+    List<String> pathNames = [];
+
+    for (int i = 0; i < _paths.length; i++) {
+      if (_paths[i].folder != _pathFolder) {
+        continue;
+      }
+      pathEntries[_paths[i].name] = i;
+      pathNames.add(_paths[i].name);
+    }
+
+    if (_pathSearchQuery == '') {
+      return pathEntries.entries.map((e) => _buildPathCard(e.value, context)).toList();
+    }
+
+    List<Widget> pathCards = [];
+    List<ExtractedResult<String>> sortedPathNames = extractAllSorted(query: _pathSearchQuery, choices: pathNames, cutoff: 90);
+    for (int i = 0; i < sortedPathNames.length; i++) {
+      pathCards.add(_buildPathCard(pathEntries[sortedPathNames[i].choice]!, context));
+    }
+
+
+    return pathCards;
+  }
+
+    List<Widget> fuzzySearchAutos(BuildContext context) {
+    Map<String, int> autoEntries = {};
+    List<String> autoNames = [];
+
+    for (int i = 0; i < _autos.length; i++) {
+      if (_autos[i].folder != _autoFolder) {
+        continue;
+      }
+      autoEntries[_autos[i].name] = i;
+      autoNames.add(_autos[i].name);
+    }
+
+    if (_autoSearchQuery == '') {
+      return autoEntries.entries.map((e) => _buildAutoCard(e.value, context)).toList();
+    }
+
+    List<Widget> autoCards = [];
+    List<ExtractedResult<String>> sortedAutoNames = extractAllSorted(query: _autoSearchQuery, choices: autoNames, cutoff: 90);
+    for (int i = 0; i < sortedAutoNames.length; i++) {
+      autoCards.add(_buildAutoCard(autoEntries[sortedAutoNames[i].choice]!, context));
+    }
+
+
+    return autoCards;
   }
 
   @override
@@ -885,15 +939,7 @@ class _ProjectPageState extends State<ProjectPage> {
                       childAspectRatio: _pathsCompact ? 2.5 : 1.55,
                       physics: const NeverScrollableScrollPhysics(),
                       shrinkWrap: true,
-                      children: [
-                        for (int i = 0; i < _paths.length; i++)
-                          if (_paths[i].folder == _pathFolder &&
-                              _paths[i]
-                                  .name
-                                  .toLowerCase()
-                                  .contains(_pathSearchQuery.toLowerCase()))
-                            _buildPathCard(i, context),
-                      ],
+                      children: fuzzySearchPaths(context),
                     ),
                   ],
                 ),
